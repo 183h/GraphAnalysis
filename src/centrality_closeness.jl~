@@ -1,0 +1,64 @@
+#=
+Popis
+  Funkcia vypocita pre kazdy vrchol hodnotu jeho closeness centrality.
+
+Parametre
+  g : datova struktura grafu :: GenericGraph
+  dist_key : nazov atributu, v ktorom je ulozena vlastnost vrchola :: String
+  normalize : parameter pre aplikovanie normalizacie :: Bool
+
+Navratova hodnota
+  closeness : slovnik obsahujuci mapovanie vrcholov a k nim prisluchajucich hodnot
+           closeness centrality (index_vrchola => hodnota_closeness_centrality) :: Dict{Int64, Float64}()
+
+Poznamky
+  Hodnota centrality moze byt normalizovana nastavenim parametra normalize na True/False.
+  Vypocet centrality je upraveny aby velkost grafu neovplyvnovala hodnotu centrality.
+=#
+
+function centrality_closeness(g::GenericGraph; dist_key::AbstractString="weight", normalize::Bool=true)
+
+  epi = AttributeEdgePropertyInspector{Float64}(dist_key)
+  distances = Dict{Int64, Array{Float64,1}}()
+  closeness = Dict{Int64, Float64}()
+
+  for v in vertices(g)
+
+    sp = dijkstra_shortest_paths(g, epi, [v])
+    distances[v.index] = sp.dists
+    index_vector = Int64[]
+
+    for (index, value) in enumerate(distances[v.index])
+
+      if value == Inf
+        push!(index_vector, index)
+      end
+
+    end
+
+    deleteat!(distances[v.index], index_vector)
+
+  end
+
+  for k in keys(distances)
+
+      total_dist = sum(distances[k])
+
+      if total_dist > 0 && num_vertices(g) > 1
+
+        closeness[k] = (length(distances[k]) - 1.0) / total_dist
+
+        if normalize
+
+          norm_coefficient = (length(distances[k])-1.0) / ( num_vertices(g) - 1 )
+          closeness[k] *= norm_coefficient
+
+        end
+
+      end
+
+  end
+
+  return closeness
+
+end
